@@ -1,28 +1,30 @@
-# Assignment 3 - Group 15
+# Web Server Security Assignment 3 - Group 15
 
-Web Server Security assignment repository for Group 15. The shared application is in [`web-security-demo/`](web-security-demo/).
+A single Express application that demonstrates five common web-security vulnerabilities and their mitigations. Each member owns one clearly named route in the shared application.
 
-## Team contributions
+## Team and routes
 
-| Member | Assigned vulnerability | Folder |
+| Member | Assignment | Route |
 | --- | --- | --- |
-| Jasmine | SQL Injection - authentication bypass | `jasmine-sqli-auth-bypass/` |
-| Diyanshi | SQL Injection - UNION-based data extraction | `diyanshi-sqli-union/` |
-| Purvi | OS command injection - in-band | `purvi-command-injection/` |
-| Yashika | Stored cross-site scripting | `yashika-stored-xss/` |
-| Jayanth | CSRF - GET-based forged action | `jayanth-csrf-demo/` |
+| Jasmine | SQL injection - authentication bypass | `/jasmine` |
+| Diyanshi | SQL injection - UNION-style data exposure | `/diyanshi` |
+| Purvi | OS command injection | `/purvi` |
+| Yashika | Stored cross-site scripting | `/yashika` |
+| Jayanth | Cross-site request forgery | `/jayanth` |
 
-## Collaboration rules
+## Run locally
 
-- Work in your own branch named `your-name-feature`.
-- Keep your implementation inside your assigned folder.
-- Do not edit another member's folder without asking them.
-- Use a pull request or tell the group lead before changing shared files such as this README or the main application configuration.
+```powershell
+npm install
+npm start
+```
 
-## Submission checklist
+Then open [http://localhost:3000](http://localhost:3000).
 
-- [ ] Each vulnerability has a working local demonstration.
-- [ ] Each mitigation is implemented and verified.
-- [ ] The README records the final group ownership table and run instructions.
-- [ ] One unlisted group demonstration video is recorded.
-- [ ] Repository URL and video URL are submitted before the deadline.
+## Application structure
+
+- `server.js` - shared Express application and all member routes.
+- `package.json` - application dependencies and start command.
+- `README.md` - project overview and route ownership.
+
+Each route includes a deliberately vulnerable flow and a protected flow for comparison. The application is for localhost coursework only. The command-injection route is a safe simulation and never executes operating-system commands.
