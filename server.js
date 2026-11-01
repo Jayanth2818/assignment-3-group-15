@@ -118,6 +118,13 @@ app.get('/settings', (req, res) => { const current = account(req); res.send(shel
 app.get('/settings/legacy-update', (req, res) => { const email = String(req.query.email || ''); if (!email.includes('@')) return res.status(400).send('A valid email is required.'); account(req).email = email; res.send(shell('Account Updated', 'settings', `<div class="eyebrow">Account Settings</div><h1>Legacy update completed</h1><div class="result warning"><strong>Contact email changed through a GET request.</strong><pre>${escapeHtml(email)}</pre></div><a class="button secondary" href="/settings">Return to settings</a>`)); });
 app.post('/settings/secure-update', (req, res) => { const email = String(req.body.email || ''); if (!validToken(req, req.body.csrfToken)) return res.status(403).send(shell('Request blocked', 'settings', `<h1>Request blocked</h1><div class="result blocked"><strong>Missing or invalid anti-forgery token.</strong></div><a class="button secondary" href="/settings">Return to settings</a>`)); if (!email.includes('@')) return res.status(400).send('A valid email is required.'); account(req).email = email; res.send(shell('Account Updated', 'settings', `<div class="eyebrow">Account Settings</div><h1>Changes saved</h1><div class="result"><strong>Contact email updated securely.</strong><pre>${escapeHtml(email)}</pre></div><a class="button secondary" href="/settings">Return to settings</a>`)); });
 
+// Assignment Roadmap Route Aliases
+app.get('/login', (_req, res) => res.redirect('/access'));
+app.get('/search', (req, res) => res.redirect(req.query.q ? `/catalog/legacy-search?q=${encodeURIComponent(req.query.q)}` : '/catalog'));
+app.get('/ping', (req, res) => res.redirect(req.query.host ? `/diagnostics/legacy-check?host=${encodeURIComponent(req.query.host)}` : '/diagnostics'));
+app.get('/comments', (_req, res) => res.redirect('/community'));
+app.get('/update-email', (req, res) => res.redirect(req.query.email ? `/settings/legacy-update?email=${encodeURIComponent(req.query.email)}` : '/settings'));
+
 // Backward-compatible aliases for any earlier bookmarked coursework URLs.
 app.get(['/jasmine', '/diyanshi'], (_req, res) => res.redirect('/access'));
 app.get('/purvi', (_req, res) => res.redirect('/diagnostics'));
