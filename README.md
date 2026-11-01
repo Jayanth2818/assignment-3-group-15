@@ -1,16 +1,16 @@
-# Web Server Security Assignment 3 - Group 15
+# Sentinel Workspace - Web Server Security Assignment 3
 
-A single Express application that demonstrates five common web-security vulnerabilities and their mitigations. Each member owns one clearly named route in the shared application.
+Sentinel Workspace is a polished local web application for demonstrating secure and legacy implementations of common web workflows.
 
-## Team and routes
+## Workspace modules
 
-| Member | Assignment | Route |
+| Module | Route | Workflow |
 | --- | --- | --- |
-| Jasmine | SQL injection - authentication bypass | `/jasmine` |
-| Diyanshi | SQL injection - UNION-style data exposure | `/diyanshi` |
-| Purvi | OS command injection | `/purvi` |
-| Yashika | Stored cross-site scripting | `/yashika` |
-| Jayanth | Cross-site request forgery | `/jayanth` |
+| Access Center | `/access` | Authentication and account access |
+| Knowledge Catalog | `/catalog` | Search and data retrieval |
+| Network Diagnostics | `/diagnostics` | Controlled target validation |
+| Community Wall | `/community` | Publishing workspace updates |
+| Account Settings | `/settings` | Protected account updates |
 
 ## Run locally
 
@@ -27,4 +27,4 @@ Then open [http://localhost:3000](http://localhost:3000).
 - `package.json` - application dependencies and start command.
 - `README.md` - project overview and route ownership.
 
-Each route includes a deliberately vulnerable flow and a protected flow for comparison. The application is for localhost coursework only. The command-injection route is a safe simulation and never executes operating-system commands.
+Each module includes a legacy workflow and a protected workflow for comparison. The application is for localhost coursework only. The Network Diagnostics module is a safe simulation and never executes operating-system commands.
