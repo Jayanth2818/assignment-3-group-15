@@ -1,6 +1,6 @@
 # Assignment 3 - Group 15
 
-Web Server Security assignment repository for Group 15.
+Web Server Security assignment repository for Group 15. The shared application is in [`web-security-demo/`](web-security-demo/).
 
 ## Team contributions
 
