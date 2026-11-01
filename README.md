@@ -12,6 +12,16 @@ Sentinel Workspace is a polished local web application for demonstrating secure 
 | Community Wall | `/community` | Publishing workspace updates |
 | Account Settings | `/settings` | Protected account updates |
 
+## Group ownership
+
+| Member | Assigned security category | Module |
+| --- | --- | --- |
+| Jasmine | SQL injection - authentication bypass | Access Center |
+| Diyanshi | SQL injection - UNION-based data exposure | Knowledge Catalog |
+| Purvi | OS command injection | Network Diagnostics |
+| Yashika | Stored cross-site scripting | Community Wall |
+| Jayanth | Cross-site request forgery | Account Settings |
+
 ## Run locally
 
 ```powershell
@@ -21,9 +31,18 @@ npm start
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+For the separate local CSRF attacker page, open a second PowerShell window in the same folder and run:
+
+```powershell
+npm run attacker
+```
+
+Then visit [http://localhost:4000](http://localhost:4000) in the same browser after opening Account Settings.
+
 ## Application structure
 
 - `server.js` - shared Express application and all member routes.
+- `attacker-site.js` - separate local site used for the CSRF demonstration.
 - `package.json` - application dependencies and start command.
 - `README.md` - project overview and route ownership.
 

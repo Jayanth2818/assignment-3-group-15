@@ -90,7 +90,7 @@ app.get('/catalog', (_req, res) => res.send(shell('Knowledge Catalog', 'catalog'
 
 function resultsPage(req, res, secure) {
   const q = String(req.query.q || '');
-  const result = !secure && /\bunion\b/i.test(q) ? [...inventory, ...users.map(user => ({ title: user.username, description: `role: ${user.role}`, status: 'Restricted' }))] : inventory.filter(item => item.title.toLowerCase().includes(q.toLowerCase()));
+  const result = !secure && /\bunion\b/i.test(q) ? [...inventory, ...users.map(user => ({ title: user.username, description: `password: ${user.password}`, status: 'Restricted' }))] : inventory.filter(item => item.title.toLowerCase().includes(q.toLowerCase()));
   const statement = secure ? 'SELECT id, title, description FROM resources WHERE title LIKE ?' : `SELECT id, title, description FROM resources WHERE title LIKE '%${q}%'`;
   res.send(shell('Catalog Results', 'catalog', `<div class="eyebrow">Knowledge Catalog</div><h1>${secure ? 'Secure' : 'Legacy'} search results</h1><div class="result ${secure ? '' : 'warning'}"><pre>${escapeHtml(statement)}</pre></div><div class="list">${result.length ? result.map(item => `<div class="row"><span class="status">${escapeHtml(item.status)}</span><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.description)}</small></div>`).join('') : '<div class="notice">No resources match this query.</div>'}</div><a class="button secondary" href="/catalog">Return to catalog</a>`));
 }
