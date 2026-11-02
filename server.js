@@ -16,6 +16,37 @@ const inventory = [
 ];
 const posts = [];
 
+// --- Database Setup for SQL Injection Demonstration (Diyanshi - Variant 2) ---
+// Uses Node.js built-in SQLite module (node:sqlite) for genuine SQL query execution.
+let sqliteDb = null;
+try {
+  const { DatabaseSync } = require('node:sqlite');
+  sqliteDb = new DatabaseSync(':memory:');
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS items (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL
+    );
+    INSERT INTO items (id, title, description) VALUES
+      (1, 'Security Operations Handbook', 'Guidance for internal response teams'),
+      (2, 'Web Application Playbook', 'Practical secure-development reference'),
+      (3, 'Infrastructure Review Kit', 'Network review and assessment toolkit');
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL
+    );
+    INSERT INTO users (id, username, password) VALUES
+      (1, 'admin', 'admin123'),
+      (2, 'alex', 'welcome123');
+  `);
+} catch (err) {
+  // Graceful fallback if node:sqlite is not supported in the active environment
+  sqliteDb = null;
+}
+
 app.use(express.urlencoded({ extended: false }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'coursework-local-session-secret',
@@ -86,13 +117,174 @@ app.get('/access/secure-login', (req, res) => {
   res.send(shell('Secure access result', 'access', `<div class="eyebrow">Access Center</div><h1>Protected sign-in result</h1><div class="result ${result ? '' : 'blocked'}"><strong>${result ? `Session opened for ${escapeHtml(result.username)}` : 'Authentication failed'}</strong><pre>SELECT * FROM users WHERE username = ? AND password = ?</pre></div><a class="button secondary" href="/access">Return to access center</a>`));
 });
 
-app.get('/catalog', (_req, res) => res.send(shell('Knowledge Catalog', 'catalog', `<section class="hero"><div><div class="eyebrow">Knowledge Catalog</div><h1>Search trusted internal resources.</h1><p>Catalog search supports a legacy lookup path and an isolated parameterized search path.</p></div><span class="badge">3 resources indexed</span></section><div class="split"><section class="card"><div class="mode lab">Legacy workflow</div><h2>Catalog search</h2><form method="get" action="/catalog/legacy-search"><label>Search query<input name="q" placeholder="Search resources"></label><button>Search</button></form></section><section class="card"><div class="mode secure">Protected workflow</div><h2>Secure catalog search</h2><form method="get" action="/catalog/secure-search"><label>Search query<input name="q" placeholder="Search resources"></label><button>Search securely</button></form></section></div>`)));
+app.get('/catalog', (_req, res) => res.send(shell('Knowledge Catalog', 'catalog', `
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Diyanshi &bull; SQL Injection (Variant 2)</div>
+      <h1>Knowledge Catalog</h1>
+      <p>Demonstration of UNION-Based SQL Injection (Data Extraction) and its mitigation using Parameterized Queries (Prepared Statements).</p>
+    </div>
+    <span class="badge">3 items in database</span>
+  </section>
+
+  <div class="split">
+    <!-- Vulnerable Implementation -->
+    <section class="card">
+      <div class="mode lab">Vulnerable Workflow (Dynamic SQL Concatenation)</div>
+      <h2>Catalog Search</h2>
+      <p>Directly concatenates user input into the SQL query without parameter binding or escaping.</p>
+      <form method="get" action="/catalog/legacy-search">
+        <label>Search Items
+          <input name="q" placeholder="e.g. Security or ' UNION SELECT..." value="">
+        </label>
+        <button>Search (Vulnerable)</button>
+      </form>
+      <div style="margin-top:14px;padding:10px;background:#12151f;border:1px solid #2a2d3a;border-radius:6px;font-size:0.8rem">
+        <strong style="color:var(--amber)">Exploit Payload:</strong><br>
+        <code style="word-break:break-all;color:#ffcf66">' UNION SELECT 1, username, password FROM users --</code>
+      </div>
+    </section>
+
+    <!-- Protected Implementation -->
+    <section class="card">
+      <div class="mode secure">Protected Workflow (Prepared Statement)</div>
+      <h2>Secure Catalog Search</h2>
+      <p>Uses parameterized query placeholders (<code>?</code>) so user input is treated strictly as literal data.</p>
+      <form method="get" action="/catalog/secure-search">
+        <label>Search Items
+          <input name="q" placeholder="e.g. Security or ' UNION SELECT..." value="">
+        </label>
+        <button>Search Securely</button>
+      </form>
+      <div style="margin-top:14px;padding:10px;background:#12151f;border:1px solid #2a2d3a;border-radius:6px;font-size:0.8rem">
+        <strong style="color:var(--green)">Mitigated Query:</strong><br>
+        <code style="color:#8bf1cb">SELECT id, title, description FROM items WHERE title LIKE ?</code>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <h3>Demonstration Steps (Video & Viva)</h3>
+    <ol style="margin:8px 0 0 20px;padding:0;color:var(--muted);line-height:1.7;font-size:0.88rem">
+      <li><strong>Step 1 (Normal Search - Vulnerable):</strong> Search for <code>Security</code> in Vulnerable search &rarr; Returns normal catalog item.</li>
+      <li><strong>Step 2 (Exploit - Vulnerable):</strong> Enter payload <code>' UNION SELECT 1, username, password FROM users --</code> &rarr; Vulnerable dynamic SQL concatenates input, executing a secondary query that extracts dummy credentials from the <code>users</code> table.</li>
+      <li><strong>Step 3 (Mitigation - Secure):</strong> Enter the exact same payload into the Secure search &rarr; Parameterized query treats input as literal search text; no SQL injection occurs, returning "No matching items found."</li>
+      <li><strong>Step 4 (Normal Search - Secure):</strong> Search for <code>Security</code> in Secure search &rarr; Proves normal search functionality remains fully operational.</li>
+    </ol>
+  </section>
+`)));
 
 function resultsPage(req, res, secure) {
   const q = String(req.query.q || '');
-  const result = !secure && /\bunion\b/i.test(q) ? [...inventory, ...users.map(user => ({ title: user.username, description: `password: ${user.password}`, status: 'Restricted' }))] : inventory.filter(item => item.title.toLowerCase().includes(q.toLowerCase()));
-  const statement = secure ? 'SELECT id, title, description FROM resources WHERE title LIKE ?' : `SELECT id, title, description FROM resources WHERE title LIKE '%${q}%'`;
-  res.send(shell('Catalog Results', 'catalog', `<div class="eyebrow">Knowledge Catalog</div><h1>${secure ? 'Secure' : 'Legacy'} search results</h1><div class="result ${secure ? '' : 'warning'}"><pre>${escapeHtml(statement)}</pre></div><div class="list">${result.length ? result.map(item => `<div class="row"><span class="status">${escapeHtml(item.status)}</span><strong>${escapeHtml(item.title)}</strong><br><small>${escapeHtml(item.description)}</small></div>`).join('') : '<div class="notice">No resources match this query.</div>'}</div><a class="button secondary" href="/catalog">Return to catalog</a>`));
+  let rows = [];
+  let queryError = null;
+  let statement = '';
+
+  if (secure) {
+    // --- MITIGATED CODE PATH (Diyanshi) ---
+    // Primary Mitigation: Parameterized Query / Prepared Statement
+    // The query template is compiled separately, and user input is passed as a bound parameter.
+    // Untrusted input can never alter query logic or inject UNION operators.
+    statement = 'SELECT id, title, description FROM items WHERE title LIKE ?';
+    if (sqliteDb) {
+      try {
+        rows = sqliteDb.prepare(statement).all(`%${q}%`);
+      } catch (err) {
+        queryError = err.message;
+      }
+    } else {
+      // Fallback in-memory search
+      rows = inventory.filter(item => item.title.toLowerCase().includes(q.toLowerCase()));
+    }
+  } else {
+    // --- VULNERABLE CODE PATH (Diyanshi) ---
+    // Flaw: Dynamic SQL Query String Concatenation
+    // Untrusted user input from req.query.q is concatenated directly into the raw SQL query.
+    // An attacker can break out of string literals using quotes and append UNION SELECT statements.
+    statement = `SELECT id, title, description FROM items WHERE title LIKE '%${q}%'`;
+    if (sqliteDb) {
+      try {
+        rows = sqliteDb.prepare(statement).all();
+      } catch (err) {
+        queryError = err.message;
+      }
+    } else {
+      // Fallback in-memory simulation
+      if (/\bunion\b/i.test(q)) {
+        rows = [
+          ...inventory,
+          ...users.map(u => ({ id: 1, title: u.username, description: `password: ${u.password}`, isExtracted: true }))
+        ];
+      } else {
+        rows = inventory.filter(item => item.title.toLowerCase().includes(q.toLowerCase()));
+      }
+    }
+  }
+
+  const oppositeUrl = secure 
+    ? `/catalog/legacy-search?q=${encodeURIComponent(q)}` 
+    : `/catalog/secure-search?q=${encodeURIComponent(q)}`;
+
+  const oppositeLabel = secure ? 'Test same input in Vulnerable Mode' : 'Test same input in Secure Mode';
+
+  res.send(shell('Catalog Results', 'catalog', `
+    <div class="eyebrow">Knowledge Catalog &bull; SQL Injection (Variant 2)</div>
+    <h1>${secure ? 'Secure' : 'Legacy (Vulnerable)'} Search Results</h1>
+    
+    <div class="notice ${secure ? '' : 'warning'}" style="margin-bottom:14px">
+      <strong>Mode:</strong> ${secure ? '<span class="mode secure">PROTECTED (Parameterized Query)</span>' : '<span class="mode lab">VULNERABLE (Dynamic SQL Concatenation)</span>'}<br>
+      <small>${secure 
+        ? 'User input is bound as literal parameter data. SQL syntax structure cannot be altered by attacker input.' 
+        : 'User input is concatenated directly into the SQL query without escaping or parameter binding, allowing UNION data extraction.'}
+      </small>
+    </div>
+
+    <div class="result ${secure ? '' : 'warning'}">
+      <strong>Executed SQL Query:</strong>
+      <pre>${escapeHtml(statement)}</pre>
+      ${secure ? `<div style="margin-top:6px;font-size:0.85rem;color:var(--muted)">Bound Parameter: <code>${escapeHtml(JSON.stringify(`%${q}%`))}</code></div>` : ''}
+      ${queryError ? `<div style="color:var(--red);margin-top:8px"><strong>Database Error:</strong> ${escapeHtml(queryError)}</div>` : ''}
+    </div>
+
+    <!-- Search / Switch Controls -->
+    <div style="display:flex;gap:10px;margin:18px 0;flex-wrap:wrap;align-items:center">
+      <a class="button secondary" href="${oppositeUrl}">${oppositeLabel}</a>
+      <a class="button secondary" href="/catalog">New Search</a>
+    </div>
+
+    <h2 style="margin-top:24px">Returned Records (${rows.length})</h2>
+    ${rows.length ? `
+      <div style="overflow-x:auto;margin-top:12px">
+        <table style="width:100%;border-collapse:collapse;background:#12151f;border:1px solid #2a2d3a;border-radius:8px">
+          <thead>
+            <tr style="border-bottom:1px solid #2a2d3a;text-align:left;color:var(--muted);font-size:0.8rem;text-transform:uppercase">
+              <th style="padding:10px 14px">ID</th>
+              <th style="padding:10px 14px">Title (or Extracted Username)</th>
+              <th style="padding:10px 14px">Description (or Extracted Password)</th>
+              <th style="padding:10px 14px">Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(item => {
+              const isExtracted = !secure && users.some(u => u.username === item.title && u.password === item.description);
+              return `
+                <tr style="border-bottom:1px solid #1f2330;${isExtracted ? 'background:rgba(224,92,92,0.12);color:#ffc4cf' : ''}">
+                  <td style="padding:10px 14px;font-weight:bold">${escapeHtml(item.id)}</td>
+                  <td style="padding:10px 14px;font-weight:${isExtracted ? 'bold' : 'normal'}">${escapeHtml(item.title)}</td>
+                  <td style="padding:10px 14px;font-family:${isExtracted ? 'monospace' : 'inherit'}">${escapeHtml(item.description)}</td>
+                  <td style="padding:10px 14px">
+                    ${isExtracted 
+                      ? '<span class="status" style="background:#4b1f2b;color:#ff7b91">EXFILTRATED CREDENTIAL</span>' 
+                      : '<span class="status">Catalog Item</span>'}
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    ` : '<div class="notice">No matching items found.</div>'}
+  `));
 }
 app.get('/catalog/legacy-search', (req, res) => resultsPage(req, res, false));
 app.get('/catalog/secure-search', (req, res) => resultsPage(req, res, true));
@@ -120,13 +312,20 @@ app.post('/settings/secure-update', (req, res) => { const email = String(req.bod
 
 // Assignment Roadmap Route Aliases
 app.get('/login', (_req, res) => res.redirect('/access'));
-app.get('/search', (req, res) => res.redirect(req.query.q ? `/catalog/legacy-search?q=${encodeURIComponent(req.query.q)}` : '/catalog'));
+app.get('/search', (req, res) => {
+  const q = req.query.q;
+  const mode = req.query.mode;
+  if (q === undefined) return res.redirect('/catalog');
+  const target = mode === 'secure' ? '/catalog/secure-search' : '/catalog/legacy-search';
+  res.redirect(`${target}?q=${encodeURIComponent(q)}`);
+});
 app.get('/ping', (req, res) => res.redirect(req.query.host ? `/diagnostics/legacy-check?host=${encodeURIComponent(req.query.host)}` : '/diagnostics'));
 app.get('/comments', (_req, res) => res.redirect('/community'));
 app.get('/update-email', (req, res) => res.redirect(req.query.email ? `/settings/legacy-update?email=${encodeURIComponent(req.query.email)}` : '/settings'));
 
 // Backward-compatible aliases for any earlier bookmarked coursework URLs.
-app.get(['/jasmine', '/diyanshi'], (_req, res) => res.redirect('/access'));
+app.get('/jasmine', (_req, res) => res.redirect('/access'));
+app.get('/diyanshi', (_req, res) => res.redirect('/catalog'));
 app.get('/purvi', (_req, res) => res.redirect('/diagnostics'));
 app.get('/yashika', (_req, res) => res.redirect('/community'));
 app.get('/jayanth', (_req, res) => res.redirect('/settings'));
