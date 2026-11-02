@@ -37,6 +37,7 @@ Per assignment guidelines for groups with more than four members, all four secur
 ```powershell
 npm.cmd install
 npm.cmd start
+npm.cmd test
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -53,7 +54,7 @@ Then visit [http://localhost:4000](http://localhost:4000) after first opening Ac
 
 | Module | Legacy workflow | Protected workflow |
 | --- | --- | --- |
-| Access Center | Builds an authentication query from input | Uses parameter placeholders and exact credential comparison |
+| Access Center | Builds an authentication query from input (SQLite concatenation) | Uses parameter placeholders and exact credential comparison (SQLite prepared statements) |
 | Knowledge Catalog | Interprets UNION-style search input | Treats all search input as plain text |
 | Network Diagnostics | Demonstrates command construction from input | Validates IPv4 input and never invokes a shell |
 | Community Wall | Renders a saved message as raw HTML | Encodes saved content before rendering |
@@ -64,6 +65,8 @@ Then visit [http://localhost:4000](http://localhost:4000) after first opening Ac
 | File | Purpose |
 | --- | --- |
 | `server.js` | Main Express application and all five workflows |
+| `db.js` | Local SQLite database layer, schema setup, and query handlers |
+| `test-auth.js` | Automated verification test suite for all modules and payloads |
 | `attacker-site.js` | Separate local CSRF attacker page on port 4000 |
 | `package.json` | Dependencies and run commands |
 
