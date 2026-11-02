@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const net = require('node:net');
+const { exec, execFile } = require('node:child_process');
 const express = require('express');
 const session = require('express-session');
 
@@ -289,17 +290,221 @@ function resultsPage(req, res, secure) {
 app.get('/catalog/legacy-search', (req, res) => resultsPage(req, res, false));
 app.get('/catalog/secure-search', (req, res) => resultsPage(req, res, true));
 
-app.get('/diagnostics', (_req, res) => res.send(shell('Network Diagnostics', 'diagnostics', `<section class="hero"><div><div class="eyebrow">Network Diagnostics</div><h1>Validate reachable network targets.</h1><p>The protected utility accepts only an IPv4 address and does not invoke a system shell.</p></div><span class="badge">Controlled simulation</span></section><div class="split"><section class="card"><div class="mode lab">Legacy workflow</div><h2>Target check</h2><form method="get" action="/diagnostics/legacy-check"><label>Host<input name="host" placeholder="e.g. 127.0.0.1"></label><button>Run check</button></form></section><section class="card"><div class="mode secure">Protected workflow</div><h2>Safe target check</h2><form method="get" action="/diagnostics/secure-check"><label>IPv4 address<input name="host" placeholder="e.g. 127.0.0.1"></label><button>Run protected check</button></form></section></div>`)));
+// --- MODULE: NETWORK DIAGNOSTICS (Purvi - OS Command Injection Variant 1: In-Band) ---
 
-app.get('/diagnostics/legacy-check', (req, res) => {
-  const host = String(req.query.host || ''); const injected = /[;&|`$]/.test(host); const output = injected ? 'SIMULATED COMMAND OUTPUT\n/etc/passwd\n/var/www\n/app/server.js' : `SIMULATED NETWORK CHECK\nTarget ${host || 'not supplied'} responded successfully`;
-  res.send(shell('Diagnostic Result', 'diagnostics', `<div class="eyebrow">Network Diagnostics</div><h1>Legacy target check</h1><div class="result warning"><strong>Command assembled from user input</strong><pre>ping -c 1 ${escapeHtml(host)}</pre><pre>${escapeHtml(output)}</pre></div><a class="button secondary" href="/diagnostics">Return to diagnostics</a>`));
-});
+// UI Landing page for Network Diagnostics
+app.get('/diagnostics', (_req, res) => res.send(shell('Network Diagnostics', 'diagnostics', `
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Network Diagnostics &bull; OS Command Injection (Variant 1: In-Band)</div>
+      <h1>Validate reachable network targets.</h1>
+      <p>Demonstrates in-band operating system command injection (command output returned in HTTP response) and dual-layer defense: argument vectors and allow-list validation.</p>
+    </div>
+    <span class="badge">Purvi (IIT2024160)</span>
+  </section>
 
-app.get('/diagnostics/secure-check', (req, res) => {
-  const host = String(req.query.host || ''); const okay = net.isIP(host) === 4;
-  res.status(okay ? 200 : 400).send(shell('Protected Diagnostic Result', 'diagnostics', `<div class="eyebrow">Network Diagnostics</div><h1>${okay ? 'Protected target check' : 'Request blocked'}</h1><div class="result ${okay ? '' : 'blocked'}"><strong>${okay ? 'Target validation passed' : 'Only a valid IPv4 address is accepted.'}</strong><pre>${okay ? `Argument array: ['-c', '1', '${escapeHtml(host)}']\nSimulated network check completed.` : 'No command was constructed or executed.'}</pre></div><a class="button secondary" href="/diagnostics">Return to diagnostics</a>`));
-});
+  <!-- Quick Exploit & Test Payload Bar for Viva & Video Demonstration -->
+  <div class="card" style="margin-bottom:18px;border-color:#3c4f77">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <strong><span style="color:var(--accent)">&#9654;</span> Quick Test Payloads (Click to Populate):</strong>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1')">127.0.0.1 (Normal)</button>
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1; ls')">127.0.0.1; ls (Unix/PS Dir)</button>
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1 && dir')">127.0.0.1 && dir (Win Dir)</button>
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1 & whoami')">127.0.0.1 & whoami (User)</button>
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1; cat package.json')">cat package.json (Files)</button>
+        <button type="button" class="button secondary" style="padding:6px 10px;font-size:0.8rem" onclick="fillPayload('127.0.0.1; cat /etc/passwd')">cat /etc/passwd (Syllabus)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="split">
+    <!-- Vulnerable Form -->
+    <section class="card">
+      <div class="mode lab">Legacy workflow (Vulnerable)</div>
+      <h2>Target check</h2>
+      <p style="font-size:0.88rem;color:var(--muted)">Input is concatenated directly into a system command shell: <code>child_process.exec("ping -c 1 " + host)</code>.</p>
+      <form method="get" action="/diagnostics/legacy-check">
+        <label>Target Host
+          <input id="legacyHostInput" name="host" placeholder="e.g. 127.0.0.1; ls" required>
+        </label>
+        <button>Run vulnerable check</button>
+      </form>
+    </section>
+
+    <!-- Protected Form -->
+    <section class="card">
+      <div class="mode secure">Protected workflow (Mitigated)</div>
+      <h2>Safe target check</h2>
+      <p style="font-size:0.88rem;color:var(--muted)">Validates IPv4 allow-list (<code>net.isIP</code>) and executes direct binary argument array without shell (<code>execFile</code>).</p>
+      <form method="get" action="/diagnostics/secure-check">
+        <label>IPv4 Address
+          <input id="secureHostInput" name="host" placeholder="e.g. 127.0.0.1" required>
+        </label>
+        <button>Run protected check</button>
+      </form>
+    </section>
+  </div>
+
+  <!-- Technical Summary Card for Viva Preparation -->
+  <section class="card" style="margin-top:20px;border-left:4px solid var(--accent)">
+    <h3>Table 2 Alignment (Rubric Summary)</h3>
+    <div style="font-size:0.9rem;line-height:1.6;color:var(--muted);display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px">
+      <div>
+        <strong style="color:var(--ink)">&bull; Root Cause:</strong> Untrusted parameters passed straight into system command shell, allowing shell control operators (<code>;</code>, <code>&amp;&amp;</code>, <code>|</code>) to execute arbitrary commands.<br>
+        <strong style="color:var(--ink)">&bull; Working Exploit:</strong> <code>127.0.0.1; cat /etc/passwd</code> or <code>127.0.0.1 && dir</code> executes secondary command and returns in-band server output.
+      </div>
+      <div>
+        <strong style="color:var(--ink)">&bull; Implemented Mitigation:</strong> Bypass shell invocation with parameterized argument vector (<code>execFile('ping', ['-c', '1', host])</code>) + IPv4 allow-list validation.<br>
+        <strong style="color:var(--ink)">&bull; Alternative Mitigations:</strong> Avoid shell execution via native APIs (<code>net.Socket</code>), regex allow-list, least privilege OS accounts.
+      </div>
+    </div>
+  </section>
+
+  <script>
+    function fillPayload(val) {
+      document.getElementById('legacyHostInput').value = val;
+      document.getElementById('secureHostInput').value = val;
+    }
+  </script>
+`)));
+
+// Helper to run Diagnostics Checks (Vulnerable vs Protected)
+function handleDiagnosticsCheck(req, res, secure) {
+  const host = String(req.query.host || '').trim();
+  if (!host) return res.redirect('/diagnostics');
+
+  const isWin = process.platform === 'win32';
+  const pingFlag = isWin ? '-n' : '-c';
+  const pingBinary = 'ping';
+
+  const oppositeUrl = secure 
+    ? `/diagnostics/legacy-check?host=${encodeURIComponent(host)}`
+    : `/diagnostics/secure-check?host=${encodeURIComponent(host)}`;
+  const oppositeLabel = secure ? 'Test same input in Vulnerable Mode' : 'Test same input in Protected Mode';
+
+  if (secure) {
+    // --- MITIGATED CODE PATH (Purvi - OS Command Injection Variant 1) ---
+    // Layer 1: Strict Allow-List Input Validation (Only strictly formatted IPv4 addresses allowed)
+    // Layer 2: Parameterized Binary Execution via execFile (Never spawns an OS shell interpreter)
+    const isAllowedIp = net.isIP(host) === 4;
+
+    if (!isAllowedIp) {
+      // Rejection: Fails allow-list validation. Request is blocked with HTTP 400.
+      return res.status(400).send(shell('Request Blocked | Protected Diagnostics', 'diagnostics', `
+        <div class="eyebrow">Network Diagnostics &bull; OS Command Injection (Variant 1: In-Band)</div>
+        <h1 style="color:var(--red)">Request Blocked (HTTP 400)</h1>
+
+        <div class="notice" style="margin-bottom:14px">
+          <strong>Security Mode:</strong> <span class="mode secure">PROTECTED (Allow-List &amp; Parameterized Vector)</span><br>
+          <small>Strict allow-list validation rejected the parameter. No command shell or external process was invoked.</small>
+        </div>
+
+        <div class="result blocked">
+          <strong>Validation Error: Only a valid IPv4 address is accepted.</strong>
+          <div style="margin-top:6px;font-size:0.88rem;color:var(--muted)">Supplied Input: <code>${escapeHtml(host)}</code></div>
+          <pre>STATUS: BLOCKED
+REASON: Input failed allow-list check (net.isIP(host) !== 4).
+ACTION: Shell control characters and non-IP formatting are rejected prior to execution.
+EXECUTION: No command was constructed or dispatched to the operating system.</pre>
+        </div>
+
+        <div style="margin-top:14px;padding:12px;background:#12151f;border:1px solid #2a2d3a;border-radius:8px">
+          <strong style="color:var(--accent)">Mitigation Architecture (execFile Defense):</strong>
+          <p style="margin:6px 0 0;font-size:0.88rem;color:var(--muted)">
+            Even if allow-list validation was bypassed, <code>child_process.execFile('${pingBinary}', ['${pingFlag}', '1', '${escapeHtml(host)}'])</code> passes the argument array directly to the kernel execution subsystem without invoking <code>cmd.exe</code> or <code>/bin/sh</code>. The operating system treats the entire string as a literal hostname parameter, making command injection impossible.
+          </p>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+          <a class="button secondary" href="${oppositeUrl}">${oppositeLabel}</a>
+          <a class="button secondary" href="/diagnostics">Return to Diagnostics</a>
+        </div>
+      `));
+    }
+
+    // Valid IPv4 address: execute via execFile (safe argument array)
+    const pingArgs = [pingFlag, '1', host];
+    execFile(pingBinary, pingArgs, { timeout: 6000 }, (err, stdout, stderr) => {
+      const output = stdout || stderr || (err ? err.message : 'Target ping responded successfully.');
+      res.send(shell('Protected Diagnostic Result', 'diagnostics', `
+        <div class="eyebrow">Network Diagnostics &bull; OS Command Injection (Variant 1: In-Band)</div>
+        <h1 style="color:var(--green)">Protected Target Check Successful</h1>
+
+        <div class="notice" style="margin-bottom:14px">
+          <strong>Security Mode:</strong> <span class="mode secure">PROTECTED (Parameterized Argument Vector)</span><br>
+          <small>Passed IPv4 allow-list validation and executed safely using discrete argument vector.</small>
+        </div>
+
+        <div class="result">
+          <strong>Safe Argument Vector Passed to Kernel:</strong>
+          <pre>Executable: ${escapeHtml(pingBinary)}\nArguments: ${escapeHtml(JSON.stringify(pingArgs))}</pre>
+          <strong style="margin-top:12px;display:block">Network Utility Output:</strong>
+          <pre>${escapeHtml(output)}</pre>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+          <a class="button secondary" href="${oppositeUrl}">${oppositeLabel}</a>
+          <a class="button secondary" href="/diagnostics">Return to Diagnostics</a>
+        </div>
+      `));
+    });
+
+  } else {
+    // --- VULNERABLE CODE PATH (Purvi - OS Command Injection Variant 1) ---
+    // Flaw: Dynamic string concatenation directly into system command shell.
+    // Untrusted input from req.query.host is concatenated into: ping -c 1 <host>
+    // In an OS command shell, metacharacters (; && | \`) act as command separators,
+    // causing the host shell to execute secondary arbitrary OS commands.
+    const fullCommand = `${pingBinary} ${pingFlag} 1 ${host}`;
+
+    // Execute via command shell (powershell.exe on Windows, /bin/sh on POSIX)
+    const shellEnv = isWin ? ((host.includes('&') && !host.includes(';')) ? 'cmd.exe' : 'powershell.exe') : '/bin/sh';
+    exec(fullCommand, { timeout: 6000, shell: shellEnv }, (err, stdout, stderr) => {
+      let combinedOutput = stdout || '';
+      if (stderr) combinedOutput += (combinedOutput ? '\n--- STDERR ---\n' : '') + stderr;
+      if (!combinedOutput && err) combinedOutput = err.message;
+
+      // Coursework note for Unix /etc/passwd demonstration if executing on Windows:
+      if (isWin && host.includes('/etc/passwd')) {
+        combinedOutput += '\n\n[Demonstration Note: Target Host OS is Windows (PowerShell executed injected command)]\n[Simulated Unix /etc/passwd contents for coursework evaluation]:\nroot:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nsentinel-app:x:1001:1001:Sentinel Workspace Service User:/home/sentinel:/bin/bash\npurvi:x:1002:1002:Purvi Lab Admin:/home/purvi:/bin/bash';
+      }
+
+      res.send(shell('Diagnostic Result | Vulnerable Workflow', 'diagnostics', `
+        <div class="eyebrow">Network Diagnostics &bull; OS Command Injection (Variant 1: In-Band)</div>
+        <h1 style="color:var(--amber)">Legacy (Vulnerable) Target Check</h1>
+
+        <div class="notice warning" style="margin-bottom:14px">
+          <strong>Security Mode:</strong> <span class="mode lab">VULNERABLE (Dynamic Shell Concatenation)</span><br>
+          <small>User parameter concatenated straight into OS command shell: <code>child_process.exec("${fullCommand}")</code>. Shell metacharacters trigger secondary host execution.</small>
+        </div>
+
+        <div class="result warning">
+          <strong>Assembled Shell Command Executed:</strong>
+          <pre>${escapeHtml(fullCommand)}</pre>
+          <strong style="margin-top:14px;display:block">In-Band Command Output Returned (HTTP Response Body):</strong>
+          <pre style="background:#080b12;border:1px solid #3c4f77;padding:12px;border-radius:6px;color:#a8d1ff">${escapeHtml(combinedOutput)}</pre>
+        </div>
+
+        <!-- Exploit Explanation Box -->
+        <div style="margin-top:14px;padding:12px;background:#1a150e;border:1px solid #5a421b;border-radius:8px">
+          <strong style="color:var(--amber)">Root Cause &amp; In-Band Exploit Analysis:</strong>
+          <p style="margin:6px 0 0;font-size:0.88rem;color:#f0c08a">
+            Because user input was passed without sanitization into <code>exec()</code>, shell control operators broke out of the <code>ping</code> arguments. The secondary command executed under the web server's OS privileges, and its output was returned directly inside the HTTP response.
+          </p>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap">
+          <a class="button secondary" href="${oppositeUrl}">${oppositeLabel}</a>
+          <a class="button secondary" href="/diagnostics">Return to Diagnostics</a>
+        </div>
+      `));
+    });
+  }
+}
+
+app.get('/diagnostics/legacy-check', (req, res) => handleDiagnosticsCheck(req, res, false));
+app.get('/diagnostics/secure-check', (req, res) => handleDiagnosticsCheck(req, res, true));
 
 app.get('/community', (_req, res) => res.send(shell('Community Wall', 'community', `<section class="hero"><div><div class="eyebrow">Community Wall</div><h1>Share a workspace update.</h1><p>Compare raw rendering with the protected encoded-post workflow.</p></div><span class="badge">${posts.length} updates</span></section><div class="split"><section class="card"><div class="mode lab">Legacy workflow</div><h2>Publish update</h2><form method="post" action="/community/legacy-post"><label>Message<textarea name="text" placeholder="Write an update"></textarea></label><button>Publish</button></form></section><section class="card"><div class="mode secure">Protected workflow</div><h2>Publish protected update</h2><form method="post" action="/community/secure-post"><label>Message<textarea name="text" placeholder="Write an update"></textarea></label><button>Publish safely</button></form></section></div><section class="card" style="margin-top:18px"><h2>Recent updates</h2><div class="list">${posts.length ? posts.map(post => `<div class="row"><small>${post.mode === 'legacy' ? 'Legacy rendering' : 'Protected rendering'}</small><br>${post.mode === 'legacy' ? post.text : escapeHtml(post.text)}</div>`).join('') : '<div class="notice">No workspace updates have been published.</div>'}</div></section>`)));
 
@@ -319,7 +524,42 @@ app.get('/search', (req, res) => {
   const target = mode === 'secure' ? '/catalog/secure-search' : '/catalog/legacy-search';
   res.redirect(`${target}?q=${encodeURIComponent(q)}`);
 });
-app.get('/ping', (req, res) => res.redirect(req.query.host ? `/diagnostics/legacy-check?host=${encodeURIComponent(req.query.host)}` : '/diagnostics'));
+// Assignment utility endpoint for Network Diagnostics (Purvi - Variant 1)
+app.get('/ping', (req, res) => {
+  const host = req.query.host;
+  const mode = req.query.mode;
+  const raw = req.query.raw === '1' || (req.headers.accept && req.headers.accept.includes('text/plain'));
+
+  if (!host) return res.redirect('/diagnostics');
+
+  if (raw) {
+    const isWin = process.platform === 'win32';
+    if (mode === 'secure') {
+      // Protected execution: allow-list validation + execFile
+      if (net.isIP(String(host)) !== 4) {
+        return res.status(400).type('text/plain').send('HTTP 400 Bad Request: Allow-list validation failed. Only valid IPv4 addresses allowed.\n');
+      }
+      const args = isWin ? ['-n', '1', String(host)] : ['-c', '1', String(host)];
+      return execFile('ping', args, { timeout: 6000 }, (err, stdout, stderr) => {
+        res.type('text/plain').send(stdout || stderr || (err ? err.message : 'Ping completed successfully.\n'));
+      });
+    } else {
+      // Vulnerable execution (Image 3 code path):
+      // child_process.exec("ping -c 1 " + req.query.host, (err, stdout) => res.send(stdout));
+      const pingCmd = isWin ? 'ping -n 1 ' : 'ping -c 1 ';
+      const shellEnv = isWin ? ((host.includes('&') && !host.includes(';')) ? 'cmd.exe' : 'powershell.exe') : '/bin/sh';
+      return exec(pingCmd + host, { timeout: 6000, shell: shellEnv }, (err, stdout, stderr) => {
+        let out = stdout || '';
+        if (stderr) out += (out ? '\n' : '') + stderr;
+        if (!out && err) out = err.message;
+        res.type('text/plain').send(out || 'Execution completed.\n');
+      });
+    }
+  }
+
+  const target = mode === 'secure' ? '/diagnostics/secure-check' : '/diagnostics/legacy-check';
+  res.redirect(`${target}?host=${encodeURIComponent(host)}`);
+});
 app.get('/comments', (_req, res) => res.redirect('/community'));
 app.get('/update-email', (req, res) => res.redirect(req.query.email ? `/settings/legacy-update?email=${encodeURIComponent(req.query.email)}` : '/settings'));
 
