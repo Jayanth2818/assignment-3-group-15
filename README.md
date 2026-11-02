@@ -26,11 +26,11 @@ Per assignment guidelines for groups with more than four members, all four secur
 
 | Member Name | Roll Number | Vulnerability Category | Variant Implemented | Workspace Module | Branch | Individual Roadmap & Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Jasmine** | [Insert Roll] | SQL Injection | Variant 1: Authentication Bypass | Access Center (`/login`, `/access`) | `jasmine` | [Jasmine Roadmap](docs/jasmine-sqli-auth-bypass.md) |
-| **Diyanshi** | [Insert Roll] | SQL Injection | Variant 2: UNION-Based Data Extraction | Knowledge Catalog (`/search`, `/catalog`) | `diyanshi` | [Diyanshi Roadmap](docs/diyanshi-sqli-union.md) |
-| **Purvi** | [Insert Roll] | OS Command Injection | Variant 1: In-Band (Command Output Returned) | Network Diagnostics (`/ping`, `/diagnostics`) | `purvi` | [Purvi Roadmap](docs/purvi-command-injection.md) |
-| **Yashika** | [Insert Roll] | Cross-Site Scripting (XSS) | Variant 1: Stored XSS | Community Wall (`/comments`, `/community`) | `yashika` | [Yashika Roadmap](docs/yashika-stored-xss.md) |
-| **Jayanth** | [Insert Roll] | Cross-Site Request Forgery (CSRF) | Variant 1: GET-Based Forged Action | Account Settings (`/update-email`, `/settings`) | `jayanth` | [Jayanth Roadmap](docs/jayanth-csrf.md) |
+| **Jasmine** | IIT2024200 | SQL Injection | Variant 1: Authentication Bypass | Access Center (`/login`, `/access`) | `jasmine` | [Jasmine Roadmap](docs/jasmine-sqli-auth-bypass.md) |
+| **Diyanshi** | IIT2024158 | SQL Injection | Variant 2: UNION-Based Data Extraction | Knowledge Catalog (`/search`, `/catalog`) | `diyanshi` | [Diyanshi Roadmap](docs/diyanshi-sqli-union.md) |
+| **Purvi** | IIT2024160 | OS Command Injection | Variant 1: In-Band (Command Output Returned) | Network Diagnostics (`/ping`, `/diagnostics`) | `purvi` | [Purvi Roadmap](docs/purvi-command-injection.md) |
+| **Yashika** | IIT2024178 | Cross-Site Scripting (XSS) | Variant 1: Stored XSS | Community Wall (`/comments`, `/community`) | `yashika` | [Yashika Roadmap](docs/yashika-stored-xss.md) |
+| **Jayanth** | IIT2024155 | Cross-Site Request Forgery (CSRF) | Variant 1: GET-Based Forged Action | Account Settings (`/update-email`, `/settings`) | `jayanth` | [Jayanth Roadmap](docs/jayanth-csrf.md) |
 
 ## Run locally
 
