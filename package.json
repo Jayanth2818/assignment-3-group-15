@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "attacker": "node attacker-site.js"
+    "attacker": "node attacker-site.js",
+    "test": "node test-auth.js"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "express-session": "^1.18.1"
+    "express-session": "^1.18.1",
+    "sqlite3": "^6.0.1"
   }
 }
