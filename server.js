@@ -4,8 +4,14 @@ const { exec, execFile } = require('node:child_process');
 const express = require('express');
 const session = require('express-session');
 
+const db = require('./db');
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+// Initialize SQLite database with dummy accounts on startup
+db.initDatabase().catch(err => console.error('SQLite initialization error:', err));
+
 const users = [
   { id: 1, username: 'admin', password: 'admin123', email: 'admin@sentinel.test', role: 'Administrator' },
   { id: 2, username: 'alex', password: 'welcome123', email: 'alex@sentinel.test', role: 'Analyst' }
@@ -103,19 +109,117 @@ app.get('/', (_req, res) => res.send(shell('Overview', 'overview', `
   <section class="hero"><div><div class="eyebrow">Welcome</div><h1>Sentinel Workspace</h1><p>Select one area below. Each page has an original flow and a secure flow, so it is easy to demonstrate and compare.</p></div></section>
   <section class="grid"><div class="card span4 module"><h2>Access</h2><p>Sign in using the account workflow.</p><a href="/access">Open Access</a></div><div class="card span4 module"><h2>Catalog</h2><p>Search the internal knowledge catalog.</p><a href="/catalog">Open Catalog</a></div><div class="card span4 module"><h2>Diagnostics</h2><p>Check a network target safely.</p><a href="/diagnostics">Open Diagnostics</a></div><div class="card span5 module"><h2>Community</h2><p>Publish and review workspace updates.</p><a href="/community">Open Community</a></div><div class="card span7 module"><h2>Settings</h2><p>Update account contact information.</p><a href="/settings">Open Settings</a></div></section>`)));
 
-app.get('/access', (_req, res) => res.send(shell('Access Center', 'access', `<section class="hero"><div><div class="eyebrow">Access Center</div><h1>Sign in to Sentinel Workspace</h1><p>Compare the legacy authentication workflow with the protected implementation.</p></div><span class="badge">Identity workflow</span></section><div class="split"><section class="card"><div class="mode lab">Legacy workflow</div><h2>Sign in</h2><p>Authentication request using the legacy query path.</p><form method="get" action="/access/legacy-login"><label>Username<input name="username" placeholder="Username"></label><label>Password<input name="password" type="password" placeholder="Password"></label><button>Continue</button></form></section><section class="card"><div class="mode secure">Protected workflow</div><h2>Secure sign in</h2><p>Uses parameter binding and exact credential comparison.</p><form method="get" action="/access/secure-login"><label>Username<input name="username" placeholder="Username"></label><label>Password<input name="password" type="password" placeholder="Password"></label><button>Continue securely</button></form></section></div>`)));
+app.get('/access', (_req, res) => res.send(shell('Access Center', 'access', `
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Access Center</div>
+      <h1>Sign in to Sentinel Workspace</h1>
+      <p>Compare the legacy authentication workflow with the protected implementation.</p>
+    </div>
+    <span class="badge">Identity workflow</span>
+  </section>
+  <div class="split">
+    <section class="card">
+      <div class="mode lab">Legacy workflow</div>
+      <h2>Sign in</h2>
+      <p>Authentication request using dynamic SQL string concatenation.</p>
+      <form method="get" action="/access/legacy-login">
+        <label>Username<input name="username" placeholder="Username (e.g. admin, alex)"></label>
+        <label>Password<input name="password" type="password" placeholder="Password"></label>
+        <button>Continue</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="mode secure">Protected workflow</div>
+      <h2>Secure sign in</h2>
+      <p>Uses parameterized query placeholders and exact credential comparison.</p>
+      <form method="get" action="/access/secure-login">
+        <label>Username<input name="username" placeholder="Username (e.g. admin, alex)"></label>
+        <label>Password<input name="password" type="password" placeholder="Password"></label>
+        <button>Continue securely</button>
+      </form>
+    </section>
+  </div>
+  <section class="card" style="margin-top:18px">
+    <div class="eyebrow">Testing & Demonstration Guide</div>
+    <h3 style="margin-top:6px">Coursework Verification Reference</h3>
+    <p><strong>Dummy Credentials:</strong> <code>admin</code> / <code>admin123</code> &bull; <code>alex</code> / <code>welcome123</code></p>
+    <p><strong>SQL Injection Payloads:</strong> <code>admin' --</code> &bull; <code>' OR '1'='1</code></p>
+    <small style="color:var(--muted)">In the legacy workflow, SQLite executes genuine string concatenation where SQL control characters alter the query logic. In the protected workflow, parameterized queries bind input strictly as literal strings.</small>
+  </section>`)));
 
-app.get('/access/legacy-login', (req, res) => {
-  const username = String(req.query.username || ''); const password = String(req.query.password || '');
-  const statement = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
-  const result = /('|%27)\s*(or|OR)\s*.*=/.test(username) ? users[0] : users.find(user => user.username === username && user.password === password);
-  res.send(shell('Access result', 'access', `<div class="eyebrow">Access Center</div><h1>Legacy sign-in result</h1><div class="result ${result ? 'warning' : 'blocked'}"><strong>${result ? `Session opened for ${escapeHtml(result.username)}` : 'Authentication failed'}</strong><pre>${escapeHtml(statement)}</pre></div><a class="button secondary" href="/access">Return to access center</a>`));
+app.all('/access/legacy-login', async (req, res) => {
+  const username = String(req.query.username || req.body?.username || '');
+  const password = String(req.query.password || req.body?.password || '');
+  const auth = await db.authenticateVulnerable(username, password);
+
+  let resultClass = 'blocked';
+  let badgeText = 'Auth Failed';
+  if (auth.status === 'SQL_INJECTION_BYPASS') {
+    resultClass = 'warning';
+    badgeText = 'Bypass Detected';
+  } else if (auth.status === 'AUTH_SUCCESS') {
+    resultClass = '';
+    badgeText = 'Authenticated';
+  }
+
+  const html = `
+    <div class="eyebrow">Access Center • Legacy Workflow</div>
+    <h1>Legacy sign-in result</h1>
+    <div class="result ${resultClass}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:1.15rem">${escapeHtml(auth.title)}</strong>
+        <span class="status" style="float:none">${escapeHtml(badgeText)}</span>
+      </div>
+      <p style="margin:4px 0 10px">${escapeHtml(auth.message)}</p>
+      ${auth.status === 'SQL_INJECTION_BYPASS' ? '<small style="color:var(--amber);display:block;margin-bottom:10px">Vulnerability Impact: SQL control characters commented out or bypassed the password condition in SQLite.</small>' : ''}
+      <label style="font-weight:700;color:var(--muted)">Executed SQL Query (Passwords Redacted):</label>
+      <pre>${escapeHtml(auth.displayQuery)}</pre>
+      <small style="color:var(--muted);margin-top:6px;display:block">Note: Actual passwords are never displayed in query logs or result messages for credential safety.</small>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <a class="button secondary" href="/access">Return to access center</a>
+      <a class="button" href="/access">Test another payload</a>
+    </div>`;
+  res.send(shell('Access result', 'access', html));
 });
 
-app.get('/access/secure-login', (req, res) => {
-  const username = String(req.query.username || ''); const password = String(req.query.password || '');
-  const result = users.find(user => user.username === username && user.password === password);
-  res.send(shell('Secure access result', 'access', `<div class="eyebrow">Access Center</div><h1>Protected sign-in result</h1><div class="result ${result ? '' : 'blocked'}"><strong>${result ? `Session opened for ${escapeHtml(result.username)}` : 'Authentication failed'}</strong><pre>SELECT * FROM users WHERE username = ? AND password = ?</pre></div><a class="button secondary" href="/access">Return to access center</a>`));
+app.all('/access/secure-login', async (req, res) => {
+  const username = String(req.query.username || req.body?.username || '');
+  const password = String(req.query.password || req.body?.password || '');
+  const auth = await db.authenticateSecure(username, password);
+
+  let resultClass = 'blocked';
+  let badgeText = 'Auth Failed';
+  if (auth.status === 'AUTH_SUCCESS') {
+    resultClass = '';
+    badgeText = 'Authenticated';
+  } else if (auth.status === 'SQL_INJECTION_BLOCKED') {
+    resultClass = '';
+    badgeText = 'Attack Blocked';
+  }
+
+  const html = `
+    <div class="eyebrow">Access Center • Protected Workflow</div>
+    <h1>Protected sign-in result</h1>
+    <div class="result ${resultClass}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:1.15rem">${escapeHtml(auth.title)}</strong>
+        <span class="status" style="float:none">${escapeHtml(badgeText)}</span>
+      </div>
+      <p style="margin:4px 0 10px">${escapeHtml(auth.message)}</p>
+      ${auth.status === 'SQL_INJECTION_BLOCKED' ? '<small style="color:var(--green);display:block;margin-bottom:10px">Mitigation Verified: Prepared statements separate query syntax from user data. Injected characters were bound as literal parameter values.</small>' : ''}
+      <label style="font-weight:700;color:var(--muted)">Prepared SQL Statement:</label>
+      <pre>${escapeHtml(auth.queryStructure)}</pre>
+      <label style="font-weight:700;color:var(--muted);margin-top:8px;display:block">Bound Parameters (Passwords Redacted):</label>
+      <pre>${escapeHtml(auth.displayParams)}</pre>
+      <small style="color:var(--muted);margin-top:6px;display:block">Note: Actual passwords are never displayed in query logs or result messages for credential safety.</small>
+    </div>
+    <div style="margin-top:18px;display:flex;gap:10px">
+      <a class="button secondary" href="/access">Return to access center</a>
+      <a class="button" href="/access">Test another payload</a>
+    </div>`;
+  res.send(shell('Secure access result', 'access', html));
 });
 
 app.get('/catalog', (_req, res) => res.send(shell('Knowledge Catalog', 'catalog', `
