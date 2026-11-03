@@ -110,7 +110,8 @@ Each owner should show the legacy flow, explain the root cause, then show the pr
 2. Run `npm.cmd run attacker` in another terminal.
 3. Open `http://localhost:4000` in the same browser, then return to Settings and show the email change.
 4. Show the protected Settings form: it uses POST plus a hidden per-session token.
-5. Explain that an external page cannot supply the required unpredictable token.
+5. Open `http://localhost:4000/secure-attempt` to submit a forged POST without a token; show the `403` blocked page.
+6. Explain that an external page cannot supply the required unpredictable token.
 
 ## Test cases
 
